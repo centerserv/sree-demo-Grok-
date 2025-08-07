@@ -1,5 +1,5 @@
 def update_trust(prior_trust, accuracy, decay=0.9):
-    """Update trust score with decay for declining accuracy."""
+    """Update trust with decay for declining accuracy."""
     likelihood = accuracy
     if accuracy < prior_trust:  # Decay if accuracy drops
         likelihood *= decay
