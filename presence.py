@@ -1,11 +1,9 @@
 import numpy as np
 from sklearn.ensemble import RandomForestClassifier
-from sklearn.metrics import accuracy_score
+from sklearn.model_selection import cross_val_score
 
-def minimize_entropy(X_train, X_test, y_train, y_test):
-    """Minimize entropy with a classifier."""
-    clf = RandomForestClassifier(n_estimators=100, random_state=42)
-    clf.fit(X_train, y_train)
-    y_pred = clf.predict(X_test)
-    accuracy = accuracy_score(y_test, y_pred)
-    return accuracy, y_pred
+def minimize_entropy(X_train, y_train):
+    clf = RandomForestClassifier(n_estimators=100, random_state=42, max_depth=5)  # Add depth to reduce overfitting
+    scores = cross_val_score(clf, X_train, y_train, cv=5)
+    accuracy = scores.mean()
+    return accuracy

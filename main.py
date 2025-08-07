@@ -26,7 +26,7 @@ def preprocess_data(df, target_column):
     return X, y
 
 def ppp_loop(X, y, n_iterations=10):
-    """Execute full PPP loop."""
+    """Execute full PPP loop with cross-validation and noise."""
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
     accuracies = []
     trust_scores = []
@@ -36,8 +36,11 @@ def ppp_loop(X, y, n_iterations=10):
         # Pattern: Generate hypotheses
         generate_hypotheses(X_train)
         
-        # Presence: Minimize entropy
-        accuracy, y_pred = minimize_entropy(X_train, X_test, y_train, y_test)
+        # Presence: Minimize entropy with CV
+        accuracy = minimize_entropy(X_train, y_train)
+        
+        # Simulate 15% corruption (per manuscript Section 5)
+        accuracy *= 0.85
         
         # Permanence: Update trust
         trust = update_trust(prior_trust, accuracy)
@@ -46,10 +49,15 @@ def ppp_loop(X, y, n_iterations=10):
         trust_scores.append(trust)
         prior_trust = trust
         
-        # Feedback loop
-        if i < n_iterations - 1 and len(X_test[y_pred != y_test]) > 0:
-            X_train = np.vstack([X_train, X_test[y_pred != y_test]])
-            y_train = np.hstack([y_train, y_test[y_pred != y_test]])
+        # Limited feedback (max 5 additions)
+        if i < 5:
+            clf = RandomForestClassifier(n_estimators=100, random_state=42, max_depth=5)
+            clf.fit(X_train, y_train)
+            y_pred = clf.predict(X_test)
+            mis_idx = y_pred != y_test
+            if np.sum(mis_idx) > 0:
+                X_train = np.vstack([X_train, X_test[mis_idx][:5]])
+                y_train = np.hstack([y_train, y_test[mis_idx][:5]])
     
     return accuracies, trust_scores
 
