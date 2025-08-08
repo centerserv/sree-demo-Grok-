@@ -2,7 +2,7 @@ import pandas as pd
 import numpy as np
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import MinMaxScaler
-from sklearn.ensemble import RandomForestClassifier  # Add this line
+from sklearn.ensemble import RandomForestClassifier
 from imblearn.over_sampling import SMOTE
 from pattern import generate_hypotheses
 from presence import minimize_entropy
@@ -10,20 +10,15 @@ from permanence import update_trust
 import matplotlib.pyplot as plt
 
 def preprocess_data(df, target_column):
-    """Preprocess dataset with generic handling."""
+    """Preprocess dataset with generic handling, ensuring robustness across datasets."""
+    if target_column not in df.columns:
+        raise ValueError("Target column not found")
+    df = df.select_dtypes(include=['number']).fillna(df.median(numeric_only=True))
     X = df.drop(target_column, axis=1).values
     y = df[target_column].values
-    
-    # Replace zeros with median and scale
-    df_numeric = df.drop(target_column, axis=1)
-    for col in df_numeric.columns:
-        df_numeric[col] = df_numeric[col].replace(0, df_numeric[col].median())
-    X = MinMaxScaler().fit_transform(df_numeric.values)
-    
-    # Handle class imbalance
+    X = MinMaxScaler().fit_transform(X)
     if (y.sum() / len(y) < 0.3) or (y.sum() / len(y) > 0.7):
         X, y = SMOTE(random_state=42).fit_resample(X, y)
-    
     return X, y
 
 def ppp_loop(X, y, n_iterations=10):
