@@ -3,34 +3,34 @@ import pandas as pd
 from main import preprocess_data, ppp_loop, plot_results
 
 st.title("SREE Demo: PPP Loop")
-st.write("Welcome! This demo refines labeled datasets using the Pattern-Presence-Permanence (PPP) loop, computing accuracy and trust (0-1 scale). You have two options: use one of our sample datasets or upload your own CSV with numeric features and a binary target (0 or 1).")
+st.write("Welcome! Upload a labeled CSV with numeric features and a binary target (0 or 1). Results will show accuracy and trust over 10 iterations.")
 
-st.write("### Download Sample Datasets:")
-st.download_button("Download UCI Heart Failure", data=open("UCI_heart_failure_clinical_records_dataset.csv", "rb").read(), file_name="UCI_heart_failure_clinical_records_dataset.csv", help="12.2KB, target: target")
-st.download_button("Download Heart Disease", data=open("heart_disease_dataset.csv", "rb").read(), file_name="heart_disease_dataset.csv", help="~48KB, target: target")
-st.download_button("Download Cardiovascular Disease", data=open("Cardiovascular_Disease_Dataset.csv", "rb").read(), file_name="Cardiovascular_Disease_Dataset.csv", help="42.6KB, target: target")
-
-dataset_option = st.selectbox("Choose a sample dataset or upload your own:", ["Upload your own"] + ["UCI_heart_failure_clinical_records_dataset.csv", "heart_disease_dataset.csv", "Cardiovascular_Disease_Dataset.csv"])
-uploaded_file = st.file_uploader("Upload your own labeled CSV", type="csv", help="Max 200MB. Ensure numeric columns and a 0/1 target column.") if dataset_option == "Upload your own" else None
-target_column = st.text_input("Binary Target Column (e.g., target)", help="Must contain only 0s and 1s.") if dataset_option == "Upload your own" else None
-
-if dataset_option != "Upload your own":
-    target_column = "target"
-    uploaded_file = open(dataset_option, "rb")
-
+uploaded_file = st.file_uploader("Upload labeled CSV", type="csv")
+target_column = st.text_input("Target column name (e.g., DEATH_EVENT)")
 if uploaded_file and target_column:
     df = pd.read_csv(uploaded_file)
     try:
         X, y = preprocess_data(df, target_column)
-        accuracies, trust_scores = ppp_loop(X, y)
-        st.write("### Results:")
-        st.write(f"Dataset: {dataset_option if dataset_option != 'Upload your own' else uploaded_file.name}, Rows: {len(df)}, Columns: {len(df.columns)}")
-        st.write(f"Preprocessing: Handled NaN with median, scaled features, applied SMOTE if imbalance (>0.7 or <0.3).")
-        st.write(f"Final Accuracy: {accuracies[-1]:.3f}, Final Trust: {trust_scores[-1]:.3f}")
+        accuracies, trust_scores, baseline_accuracy, suspect_flags, trust_per_row = ppp_loop(X, y)
+        st.write("### Final Report")
+        st.write(f"Baseline Accuracy (pre-PPP): {baseline_accuracy:.3f}")
+        st.write(f"Final Accuracy (post-PPP): {accuracies[-1]:.3f} (Improvement: {accuracies[-1] - baseline_accuracy:.3f})")
+        st.write(f"Final Trust: {trust_scores[-1]:.3f} (Convergence after iterations)")
+        st.write(f"Suspect Rows Flagged: {sum(suspect_flags)} ({sum(suspect_flags)/len(y)*100:.1f}%)")
         plot_results(accuracies, trust_scores)
         st.image("sree_results.png")
         st.download_button("Download Results", "sree_results.csv")
-        st.write("### Implications")
-        st.write("SREE improves dataset reliability, with accuracy gains up to 40% and trust ~0.96. It supports industries like health (e.g., disease prediction), finance (fraud detection), and energy (grid optimization). For details, see SREE_for_IEEE-57.pdf.")
+        
+        # Annotated dataset
+        df_annotated = df.copy()
+        df_annotated['SREE_Trust'] = trust_per_row
+        df_annotated['Suspect_Flag'] = suspect_flags
+        st.download_button("Download Annotated Dataset", df_annotated.to_csv(index=False).encode('utf-8'), file_name="annotated_dataset.csv")
+        
+        # Cleaned dataset
+        df_cleaned = df[~suspect_flags]
+        st.download_button("Download Cleaned Dataset", df_cleaned.to_csv(index=False).encode('utf-8'), file_name="cleaned_dataset.csv")
+        
+        st.write("SREE improves data reliability, with accuracy gains up to 40%. Applicable to health (diagnostics), finance (fraud), energy (optimization). See SREE_for_IEEE-57.pdf.")
     except ValueError as e:
-        st.error(f"Error: {e}. Check target column contains only 0s and 1s.")
+        st.error(f"Error: {e}")
