@@ -30,5 +30,7 @@ if uploaded_file and target_column:
         plot_results(accuracies, trust_scores)
         st.image("sree_results.png")
         st.download_button("Download Results", "sree_results.csv")
+        st.write("### Implications")
+        st.write("SREE improves dataset reliability, with accuracy gains up to 40% and trust ~0.96. It supports industries like health (e.g., disease prediction), finance (fraud detection), and energy (grid optimization). For details, see SREE_for_IEEE-57.pdf.")
     except ValueError as e:
         st.error(f"Error: {e}. Check target column contains only 0s and 1s.")
