@@ -6,7 +6,7 @@ st.title("SREE Demo: PPP Loop")
 st.write("Welcome! Upload a labeled CSV with numeric features and a binary target (0 or 1). Results will show accuracy and trust over 10 iterations.")
 
 uploaded_file = st.file_uploader("Upload labeled CSV", type="csv", help="Max 200MB. Ensure numeric columns and a 0/1 target column.")
-target_column = st.text_input("Binary Target Column (e.g., DEATH_EVENT or target)", help="Must contain only 0s and 1s.")
+target_column = st.text_input("Binary Target Column Name (example: result, target...)", help="Must contain only 0s and 1s.")
 
 if st.button("Try Sample Dataset"):
     uploaded_file = open("UCI_heart_failure_clinical_records_dataset.csv", "rb")
