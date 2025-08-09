@@ -81,7 +81,7 @@ def main():
     target_column = input("Enter the target column name (e.g., DEATH_EVENT): ")
     X, y = preprocess_data(df, target_column)
     accuracies, trust_scores = ppp_loop(X, y)
-   
+    
     # Save and display results
     results = pd.DataFrame({'Accuracy': accuracies, 'Trust': trust_scores})
     results.to_csv('sree_results.csv', index=False)
