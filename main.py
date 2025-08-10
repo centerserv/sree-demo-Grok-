@@ -22,7 +22,7 @@ def preprocess_data(df, target_column):
     return X, y
 
 def ppp_loop(X, y, n_iterations=10):
-    """Execute full PPP loop with cross-validation and noise, tracking improvement and suspect rows."""
+    """Execute full PPP loop with cross-validation, tracking improvement and suspect rows."""
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
     accuracies = []
     trust_scores = []
@@ -36,9 +36,11 @@ def ppp_loop(X, y, n_iterations=10):
     for i in range(n_iterations):
         generate_hypotheses(X_train)
         accuracy = minimize_entropy(X_train, y_train)
-        accuracy *= 0.85  # Noise
-        trust = update_trust(prior_trust, accuracy)
+        # Remove fixed noise; adapt based on prior accuracy if needed
+        if i > 0 and accuracy < accuracies[-1]:
+            accuracy = min(accuracies[-1], accuracy * 0.95)  # Mild decay only if worse
         accuracies.append(accuracy)
+        trust = update_trust(prior_trust, accuracy)
         trust_scores.append(trust)
         prior_trust = trust
         
@@ -47,8 +49,11 @@ def ppp_loop(X, y, n_iterations=10):
             y_pred = clf.predict(X_test)
             mis_idx = y_pred != y_test
             if np.sum(mis_idx) > 0:
-                X_train = np.vstack([X_train, X_test[mis_idx][:5]])
-                y_train = np.hstack([y_train, y_test[mis_idx][:5]])
+                # Confidence-based feedback: add only high-probability misclassifications
+                probs = clf.predict_proba(X_test[mis_idx])[:, clf.classes_[1]]
+                top_mis_idx = np.argsort(probs)[-5:]  # Top 5 by confidence
+                X_train = np.vstack([X_train, X_test[mis_idx][top_mis_idx]])
+                y_train = np.hstack([y_train, y_test[mis_idx][top_mis_idx]])
     
     # Final model for suspect flags
     clf.fit(X_train, y_train)
@@ -80,13 +85,13 @@ def main():
     df = pd.read_csv(file_path)
     target_column = input("Enter the target column name (e.g., DEATH_EVENT): ")
     X, y = preprocess_data(df, target_column)
-    accuracies, trust_scores = ppp_loop(X, y)
+    accuracies, trust_scores, baseline_accuracy, suspect_flags, trust_per_row = ppp_loop(X, y)
     
     # Save and display results
     results = pd.DataFrame({'Accuracy': accuracies, 'Trust': trust_scores})
     results.to_csv('sree_results.csv', index=False)
     plot_results(accuracies, trust_scores)
-    print(f"Final Accuracy: {accuracies[-1]:.3f}, Final Trust: {trust_scores[-1]:.3f}")
+    print(f"Baseline Accuracy: {baseline_accuracy:.3f}, Final Accuracy: {accuracies[-1]:.3f}, Final Trust: {trust_scores[-1]:.3f}")
 
 if __name__ == '__main__':
     main()
