@@ -85,10 +85,10 @@ def main():
     target_column = input("Enter the target column name (e.g., DEATH_EVENT): ")
     X, y, df = preprocess_data(df, target_column)
     
-    # Phase 1: Noisy
-    accuracies1, trust_scores1, baseline1, suspect_flags1, trust_per_row1 = ppp_loop(X, y, n_iterations=10, phase="1")
+    # Phase 1
+    accuracies1, trust_scores1, baseline1, suspect_flags1, trust_per_row1 = ppp_loop(X, y, phase="1")
     
-    # Phase 2: Cleaned, no noise, inherit trust
+    # Phase 2: Rerun on cleaned
     cleaned_idx = ~suspect_flags1
     X_cleaned = X[cleaned_idx]
     y_cleaned = y[cleaned_idx]
