@@ -18,13 +18,18 @@ def preprocess_data(df, target_column):
     X = MinMaxScaler().fit_transform(X)
     if (y.sum() / len(y) < 0.3) or (y.sum() / len(y) > 0.7):
         X, y = SMOTE(random_state=42).fit_resample(X, y)
-    return X, y, df  # Return df for cleaned output
+    return X, y
 
-def ppp_phase(X, y, n_iterations=10, noise_factor=0.85, prior_trust=0.5):
+def ppp_loop(X, y, n_iterations=10, noise_factor=0.85):
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
     accuracies = []
     trust_scores = []
-    baseline_accuracy = RandomForestClassifier(n_estimators=100, random_state=42, max_depth=5).fit(X_train, y_train).score(X_test, y_test)
+    prior_trust = 0.5
+    
+    # Baseline accuracy (pre-PPP)
+    clf = RandomForestClassifier(n_estimators=100, random_state=42, max_depth=5)
+    clf.fit(X_train, y_train)
+    baseline_accuracy = clf.score(X_test, y_test)
     
     for i in range(n_iterations):
         generate_hypotheses(X_train)
@@ -36,7 +41,6 @@ def ppp_phase(X, y, n_iterations=10, noise_factor=0.85, prior_trust=0.5):
         prior_trust = trust
         
         if i < 5:
-            clf = RandomForestClassifier(n_estimators=100, random_state=42, max_depth=5)
             clf.fit(X_train, y_train)
             y_pred = clf.predict(X_test)
             mis_idx = y_pred != y_test
@@ -71,7 +75,7 @@ def main():
     file_path = input("Enter your data file name (e.g., heart_failure_clinical_records.csv): ")
     df = pd.read_csv(file_path)
     target_column = input("Enter the target column name (e.g., DEATH_EVENT): ")
-    X, y, df = preprocess_data(df, target_column)
+    X, y = preprocess_data(df, target_column)
     accuracies1, trust_scores1, baseline1, suspect_flags1, trust_per_row1 = ppp_loop(X, y)
     
     # Phase 2: Rerun on cleaned
