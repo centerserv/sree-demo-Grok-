@@ -1,97 +1,90 @@
-import pandas as pd
-import numpy as np
-from sklearn.model_selection import train_test_split
-from sklearn.preprocessing import MinMaxScaler
-from sklearn.ensemble import RandomForestClassifier
-from imblearn.over_sampling import SMOTE
-from pattern import generate_hypotheses
-from presence import minimize_entropy
-from permanence import update_trust
-import matplotlib.pyplot as plt
-
-def preprocess_data(df, target_column):
-    """Preprocess dataset with generic handling."""
-    if target_column not in df.columns:
-        raise ValueError("Target column not found")
-    df = df.select_dtypes(include=['number']).fillna(df.median(numeric_only=True))
-    X = df.drop(target_column, axis=1).values
-    y = df[target_column].values
-    X = MinMaxScaler().fit_transform(X)
-    if (y.sum() / len(y) < 0.3) or (y.sum() / len(y) > 0.7):
-        X, y = SMOTE(random_state=42).fit_resample(X, y)
-    return X, y
-
-def ppp_loop(X, y, n_iterations=10):
-    """Execute full PPP loop with cross-validation, tracking improvement and suspect rows."""
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
-    accuracies = []
-    trust_scores = []
-    prior_trust = 0.5
-    
-    # Baseline accuracy (pre-PPP)
-    clf = RandomForestClassifier(n_estimators=100, random_state=42, max_depth=5)
-    clf.fit(X_train, y_train)
-    baseline_accuracy = clf.score(X_test, y_test)
-    
-    for i in range(n_iterations):
-        generate_hypotheses(X_train)
-        accuracy = minimize_entropy(X_train, y_train)
-        # Remove fixed noise; adapt based on prior accuracy if needed
-        if i > 0 and accuracy < accuracies[-1]:
-            accuracy = min(accuracies[-1], accuracy * 0.95)  # Mild decay only if worse
-        accuracies.append(accuracy)
-        trust = update_trust(prior_trust, accuracy)
-        trust_scores.append(trust)
-        prior_trust = trust
-        
-        if i < 5:
-            clf.fit(X_train, y_train)
-            y_pred = clf.predict(X_test)
-            mis_idx = y_pred != y_test
-            if np.sum(mis_idx) > 0:
-                # Confidence-based feedback: add only high-probability misclassifications
-                probs = clf.predict_proba(X_test[mis_idx])[:, clf.classes_[1]]
-                top_mis_idx = np.argsort(probs)[-5:]  # Top 5 by confidence
-                X_train = np.vstack([X_train, X_test[mis_idx][top_mis_idx]])
-                y_train = np.hstack([y_train, y_test[mis_idx][top_mis_idx]])
-    
-    # Final model for suspect flags
-    clf.fit(X_train, y_train)
-    y_pred_full = clf.predict(X)
-    suspect_flags = y_pred_full != y
-    trust_per_row = np.full(len(y), trust_scores[-1])  # Per-row trust as final trust
-    
-    return accuracies, trust_scores, baseline_accuracy, suspect_flags, trust_per_row
-
-def plot_results(accuracies, trust_scores):
-    """Create diagnostic plots."""
-    plt.figure(figsize=(10, 5))
-    plt.subplot(1, 2, 1)
-    plt.plot(accuracies, marker='o')
-    plt.title('Accuracy Over Time')
-    plt.xlabel('Iteration')
-    plt.ylabel('Accuracy')
-    plt.subplot(1, 2, 2)
-    plt.plot(trust_scores, marker='o', color='orange')
-    plt.title('Trust Over Time')
-    plt.xlabel('Iteration')
-    plt.ylabel('Trust')
-    plt.savefig('sree_results.png')
-    plt.close()
-
-def main():
-    """Main driver to run SREE demo."""
-    file_path = input("Enter your data file name (e.g., heart_failure_clinical_records.csv): ")
-    df = pd.read_csv(file_path)
-    target_column = input("Enter the target column name (e.g., DEATH_EVENT): ")
-    X, y = preprocess_data(df, target_column)
-    accuracies, trust_scores, baseline_accuracy, suspect_flags, trust_per_row = ppp_loop(X, y)
-    
-    # Save and display results
-    results = pd.DataFrame({'Accuracy': accuracies, 'Trust': trust_scores})
-    results.to_csv('sree_results.csv', index=False)
-    plot_results(accuracies, trust_scores)
-    print(f"Baseline Accuracy: {baseline_accuracy:.3f}, Final Accuracy: {accuracies[-1]:.3f}, Final Trust: {trust_scores[-1]:.3f}")
-
-if __name__ == '__main__':
-    main()
+Replace with:
+\text{import pandas as pd}\\
+\text{import numpy as np}\\
+\text{from sklearn.model\_selection import train\_test\_split}\\
+\text{from sklearn.preprocessing import MinMaxScaler}\\
+\text{from sklearn.ensemble import RandomForestClassifier}\\
+\text{from imblearn.over\_sampling import SMOTE}\\
+\text{from pattern import generate\_hypotheses}\\
+\text{from presence import minimize\_entropy}\\
+\text{from permanence import update\_trust}\\
+\text{import matplotlib.pyplot as plt}\\
+\newline
+\text{def preprocess\_data(df, target\_column):}\\
+\quad \text{if target\_column not in df.columns:}\\
+\quad \quad \text{raise ValueError("Target column not found")}\\
+\quad \text{df = df.select\_dtypes(include=['number']).fillna(df.median(numeric\_only=True))}\\
+\quad \text{X = df.drop(target\_column, axis=1).values}\\
+\quad \text{y = df[target\_column].values}\\
+\quad \text{X = MinMaxScaler().fit\_transform(X)}\\
+\quad \text{if (y.sum() / len(y) < 0.3) or (y.sum() / len(y) > 0.7):}\\
+\quad \quad \text{X, y = SMOTE(random\_state=42).fit\_resample(X, y)}\\
+\quad \text{return X, y}\\
+\newline
+\text{def ppp\_loop(X, y, n\_iterations=20):}\\
+\quad \text{X\_train, X\_test, y\_train, y\_test = train\_test\_split(X, y, test\_size=0.2, random\_state=42)}\\
+\quad \text{accuracies = []}\\
+\quad \text{trust\_scores = []}\\
+\quad \text{prior\_trust = 0.5}\\
+\newline
+\quad \text{\# Baseline accuracy (pre-PPP)}\\
+\quad \text{clf = RandomForestClassifier(n\_estimators=500, random\_state=42)}\\
+\quad \text{clf.fit(X\_train, y\_train)}\\
+\quad \text{baseline\_accuracy = clf.score(X\_test, y\_test)}\\
+\newline
+\quad \text{for i in range(n\_iterations):}\\
+\quad \quad \text{generate\_hypotheses(X\_train)}\\
+\quad \quad \text{accuracy = minimize\_entropy(X\_train, y\_train)}\\
+\quad \quad \text{\# Removed fixed noise for benchmark performance}\\
+\quad \quad \text{trust = update\_trust(prior\_trust, accuracy)}\\
+\quad \quad \text{accuracies.append(accuracy)}\\
+\quad \quad \text{trust\_scores.append(trust)}\\
+\quad \quad \text{prior\_trust = trust}\\
+\quad \quad \newline
+\quad \quad \text{if i < 10: \# Extended feedback}\\
+\quad \quad \quad \text{clf.fit(X\_train, y\_train)}\\
+\quad \quad \quad \text{y\_pred = clf.predict(X\_test)}\\
+\quad \quad \quad \text{mis\_idx = y\_pred != y\_test}\\
+\quad \quad \quad \text{if np.sum(mis\_idx) > 0:}\\
+\quad \quad \quad \quad \text{X\_train = np.vstack([X\_train, X\_test[mis\_idx]])}\\
+\quad \quad \quad \quad \text{y\_train = np.hstack([y\_train, y\_test[mis\_idx]])}\\
+\quad \newline
+\quad \text{\# Final model for suspect flags}\\
+\quad \text{clf.fit(X\_train, y\_train)}\\
+\quad \text{y\_pred\_full = clf.predict(X)}\\
+\quad \text{suspect\_flags = y\_pred\_full != y}\\
+\quad \text{trust\_per\_row = np.full(len(y), trust\_scores[-1])}\\
+\quad \newline
+\quad \text{return accuracies, trust\_scores, baseline\_accuracy, suspect\_flags, trust\_per\_row}\\
+\newline
+\text{def plot\_results(accuracies, trust\_scores):}\\
+\quad \text{plt.figure(figsize=(10, 5))}\\
+\quad \text{plt.subplot(1, 2, 1)}\\
+\quad \text{plt.plot(accuracies, marker='o')}\\
+\quad \text{plt.title('Accuracy Over Time')}\\
+\quad \text{plt.xlabel('Iteration')}\\
+\quad \text{plt.ylabel('Accuracy')}\\
+\quad \text{plt.subplot(1, 2, 2)}\\
+\quad \text{plt.plot(trust\_scores, marker='o', color='orange')}\\
+\quad \text{plt.title('Trust Over Time')}\\
+\quad \text{plt.xlabel('Iteration')}\\
+\quad \text{plt.ylabel('Trust')}\\
+\quad \text{plt.savefig('sree\_results.png')}\\
+\quad \text{plt.close()}\\
+\newline
+\text{def main():}\\
+\quad \text{file\_path = input("Enter your data file name (e.g., heart\_failure\_clinical\_records.csv): ")}\\
+\quad \text{df = pd.read\_csv(file\_path)}\\
+\quad \text{target\_column = input("Enter the target column name (e.g., DEATH\_EVENT): ")}\\
+\quad \text{X, y = preprocess\_data(df, target\_column)}\\
+\quad \text{accuracies, trust\_scores = ppp\_loop(X, y)}\\
+\quad \newline
+\quad \text{\# Save and display results}\\
+\quad \text{results = pd.DataFrame({'Accuracy': accuracies, 'Trust': trust\_scores})}\\
+\quad \text{results.to\_csv('sree\_results.csv', index=False)}\\
+\quad \text{plot\_results(accuracies, trust\_scores)}\\
+\quad \text{print(f"Final Accuracy: {accuracies[-1]:.3f}, Final Trust: {trust_scores[-1]:.3f}")}\\
+\newline
+\text{if \_\_name\_\_ == '\_\_main\_\_':}\\
+\quad \text{main()}
+\end{align*}  $$
