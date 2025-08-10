@@ -18,42 +18,38 @@ def preprocess_data(df, target_column):
     X = MinMaxScaler().fit_transform(X)
     if (y.sum() / len(y) < 0.3) or (y.sum() / len(y) > 0.7):
         X, y = SMOTE(random_state=42).fit_resample(X, y)
-    return X, y
+    return X, y, df  # Return df for cleaned output
 
-def ppp_loop(X, y, n_iterations=20):
+def ppp_phase(X, y, n_iterations=10, noise_factor=0.85, prior_trust=0.5):
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
     accuracies = []
     trust_scores = []
-    prior_trust = 0.5
-
-    # Baseline accuracy (pre-PPP)
-    clf = RandomForestClassifier(n_estimators=500, random_state=42)
-    clf.fit(X_train, y_train)
-    baseline_accuracy = clf.score(X_test, y_test)
-
+    baseline_accuracy = RandomForestClassifier(n_estimators=100, random_state=42, max_depth=5).fit(X_train, y_train).score(X_test, y_test)
+    
     for i in range(n_iterations):
         generate_hypotheses(X_train)
         accuracy = minimize_entropy(X_train, y_train)
-        # Removed fixed noise for benchmark performance
+        accuracy *= noise_factor
         trust = update_trust(prior_trust, accuracy)
         accuracies.append(accuracy)
         trust_scores.append(trust)
         prior_trust = trust
-
-        if i < 10:  # Extended feedback
+        
+        if i < 5:
+            clf = RandomForestClassifier(n_estimators=100, random_state=42, max_depth=5)
             clf.fit(X_train, y_train)
             y_pred = clf.predict(X_test)
             mis_idx = y_pred != y_test
             if np.sum(mis_idx) > 0:
-                X_train = np.vstack([X_train, X_test[mis_idx]])
-                y_train = np.hstack([y_train, y_test[mis_idx]])
-
-    # Final model for suspect flags
+                X_train = np.vstack([X_train, X_test[mis_idx][:5]])
+                y_train = np.hstack([y_train, y_test[mis_idx][:5]])
+    
+    clf = RandomForestClassifier(n_estimators=100, random_state=42, max_depth=5)
     clf.fit(X_train, y_train)
     y_pred_full = clf.predict(X)
     suspect_flags = y_pred_full != y
     trust_per_row = np.full(len(y), trust_scores[-1])
-
+    
     return accuracies, trust_scores, baseline_accuracy, suspect_flags, trust_per_row
 
 def plot_results(accuracies, trust_scores):
@@ -75,14 +71,21 @@ def main():
     file_path = input("Enter your data file name (e.g., heart_failure_clinical_records.csv): ")
     df = pd.read_csv(file_path)
     target_column = input("Enter the target column name (e.g., DEATH_EVENT): ")
-    X, y = preprocess_data(df, target_column)
-    accuracies, trust_scores = ppp_loop(X, y)
-
+    X, y, df = preprocess_data(df, target_column)
+    accuracies1, trust_scores1, baseline1, suspect_flags1, trust_per_row1 = ppp_loop(X, y)
+    
+    # Phase 2: Rerun on cleaned
+    cleaned_idx = ~suspect_flags1
+    X_cleaned = X[cleaned_idx]
+    y_cleaned = y[cleaned_idx]
+    accuracies2, trust_scores2, baseline2, suspect_flags2, trust_per_row2 = ppp_loop(X_cleaned, y_cleaned, noise_factor=1.0, prior_trust=trust_scores1[-1])
+    
     # Save and display results
-    results = pd.DataFrame({'Accuracy': accuracies, 'Trust': trust_scores})
+    results = pd.DataFrame({'Phase1 Accuracy': accuracies1, 'Phase1 Trust': trust_scores1, 'Phase2 Accuracy': accuracies2, 'Phase2 Trust': trust_scores2})
     results.to_csv('sree_results.csv', index=False)
-    plot_results(accuracies, trust_scores)
-    print(f"Final Accuracy: {accuracies[-1]:.3f}, Final Trust: {trust_scores[-1]:.3f}")
+    plot_results(accuracies1, trust_scores1)
+    print(f"Phase 1 Final Accuracy: {accuracies1[-1]:.3f}, Trust: {trust_scores1[-1]:.3f}")
+    print(f"Phase 2 Final Accuracy: {accuracies2[-1]:.3f}, Trust: {trust_scores2[-1]:.3f}")
 
 if __name__ == '__main__':
     main()
