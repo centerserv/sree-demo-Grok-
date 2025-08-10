@@ -10,6 +10,7 @@ from permanence import update_trust
 import matplotlib.pyplot as plt
 
 def preprocess_data(df, target_column):
+    """Preprocess dataset with generic handling."""
     if target_column not in df.columns:
         raise ValueError("Target column not found")
     df = df.select_dtypes(include=['number']).fillna(df.median(numeric_only=True))
@@ -20,12 +21,17 @@ def preprocess_data(df, target_column):
         X, y = SMOTE(random_state=42).fit_resample(X, y)
     return X, y
 
-def ppp_loop(X, y, n_iterations=10, noise_factor=0.85, prior_trust=0.5):
+def ppp_loop(X, y, n_iterations=10, noise_factor=0.85):
+    """Execute PPP loop with cross-validation and noise."""
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
     accuracies = []
     trust_scores = []
+    prior_trust = 0.5
     
-    baseline_accuracy = RandomForestClassifier(n_estimators=100, random_state=42, max_depth=5).fit(X_train, y_train).score(X_test, y_test)
+    # Baseline accuracy (pre-PPP)
+    clf = RandomForestClassifier(n_estimators=100, random_state=42, max_depth=5)
+    clf.fit(X_train, y_train)
+    baseline_accuracy = clf.score(X_test, y_test)
     
     for i in range(n_iterations):
         generate_hypotheses(X_train)
@@ -37,7 +43,6 @@ def ppp_loop(X, y, n_iterations=10, noise_factor=0.85, prior_trust=0.5):
         prior_trust = trust
         
         if i < 5:
-            clf = RandomForestClassifier(n_estimators=100, random_state=42, max_depth=5)
             clf.fit(X_train, y_train)
             y_pred = clf.predict(X_test)
             mis_idx = y_pred != y_test
@@ -45,7 +50,7 @@ def ppp_loop(X, y, n_iterations=10, noise_factor=0.85, prior_trust=0.5):
                 X_train = np.vstack([X_train, X_test[mis_idx][:5]])
                 y_train = np.hstack([y_train, y_test[mis_idx][:5]])
     
-    clf = RandomForestClassifier(n_estimators=100, random_state=42, max_depth=5)
+    # Final model for suspect flags
     clf.fit(X_train, y_train)
     y_pred_full = clf.predict(X)
     suspect_flags = y_pred_full != y
@@ -54,6 +59,7 @@ def ppp_loop(X, y, n_iterations=10, noise_factor=0.85, prior_trust=0.5):
     return accuracies, trust_scores, baseline_accuracy, suspect_flags, trust_per_row
 
 def plot_results(accuracies, trust_scores):
+    """Create diagnostic plots."""
     plt.figure(figsize=(10, 5))
     plt.subplot(1, 2, 1)
     plt.plot(accuracies, marker='o')
